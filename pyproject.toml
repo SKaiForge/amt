@@ -7,6 +7,13 @@ name = "amt-memory-lab"
 version = "0.1.0"
 description = "Dataset and memory-postulate infrastructure for AMT experiments"
 requires-python = ">=3.11"
+dependencies = [
+	"transformers>=4.51.0",
+	"accelerate",
+	"bitsandbytes",
+	"safetensors",
+	"sentencepiece",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
