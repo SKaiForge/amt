@@ -43,6 +43,18 @@ class NoMemorySelector:
         return ()
 
 
+class GoldMemorySelector:
+    """Oracle control that exposes exactly the benchmark-required memories."""
+
+    def select(
+        self, query: str, memories: Sequence[MemoryBenchMemory], k: int
+    ) -> tuple[str, ...]:
+        raise RuntimeError("GoldMemorySelector requires select_example")
+
+    def select_example(self, example: MemoryBenchExample) -> tuple[str, ...]:
+        return example.required_memory_ids
+
+
 class RandomMemorySelector:
     """Deterministic random-memory control for a fixed evaluation seed."""
 

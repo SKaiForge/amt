@@ -6,7 +6,7 @@ from datasets.amt_memorybench.answer import (
     build_text_prompt,
     evaluate_answers,
 )
-from datasets.amt_memorybench.evaluate import LexicalMemorySelector
+from datasets.amt_memorybench.evaluate import GoldMemorySelector, LexicalMemorySelector
 from datasets.amt_memorybench.generate import SMOKE_CONFIG, generate_benchmark
 
 
@@ -61,6 +61,17 @@ class AMTMemoryBenchAnswerTests(unittest.TestCase):
         )
 
         self.assertEqual(answer, "Python for ML experiments")
+
+    def test_gold_selector_exposes_required_memory(self) -> None:
+        examples = [
+            example
+            for example in generate_benchmark(SMOKE_CONFIG)
+            if example.task_type == "single_recall"
+        ]
+
+        metrics = evaluate_answers(examples, GoldMemorySelector(), _ExpectedAnswerer())
+
+        self.assertEqual(metrics.exact_accuracy, 1.0)
 
 
 if __name__ == "__main__":

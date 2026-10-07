@@ -69,7 +69,12 @@ def evaluate_answers(
     count = 0
     correct = 0
     for example in examples:
-        selected_ids = selector.select(example.query, example.memories, k)
+        select_example = getattr(selector, "select_example", None)
+        selected_ids = (
+            select_example(example)
+            if select_example is not None
+            else selector.select(example.query, example.memories, k)
+        )
         selected = tuple(
             memory
             for memory in example.memories

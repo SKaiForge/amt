@@ -128,3 +128,19 @@ The text-memory experiment can use `TextMemoryAnswerer` from
 `datasets.amt_memorybench.answer`. Provide any model adapter with a
 `generate(prompt: str) -> str` method; the harness formats selected memories,
 builds the prompt, and reports exact-answer accuracy through `evaluate_answers`.
+
+### AMT H1/H3 experiment
+
+The first AMT experiment bypasses retrieval and uses each example's required
+gold postulate. `amt_memory.models.QwenPrefixAMT` freezes a Qwen reader, pools
+each postulate through its frozen input embeddings, projects it to one continuous
+token, and prepends those tokens to the query embeddings. This tests one-token
+atomic memory capacity (H1) and direct latent-token consumption by the decoder
+(H3); it intentionally does not yet add cross-attention or CPT alignment.
+
+On a GPU runtime, use the `single_recall` AMT-MemoryBench examples first. For
+each example, select `required_memory_ids` directly, train only
+`QwenPrefixAMT.parameters()` with `amt.loss([postulate.text], prompt, answer)`,
+and evaluate with `amt.generate`. A successful smoke result requires both a
+falling training loss and answers that contain the gold value; cross-attention,
+retrieval, and multi-memory composition are separate later experiments.
