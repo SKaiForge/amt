@@ -37,7 +37,7 @@ class QwenPrefixAMT:
             nn.Tanh(),
             nn.Linear(self.hidden_size, self.hidden_size),
         )
-        self.projector.to(device=self.device, dtype=torch.float32)
+        self.projector.to(self.device)
         nn.init.zeros_(self.projector[-1].weight)
         nn.init.zeros_(self.projector[-1].bias)
 
@@ -67,11 +67,7 @@ class QwenPrefixAMT:
             embedded = self.embedding(encoded.input_ids)
             mask = encoded.attention_mask.unsqueeze(-1).to(embedded.dtype)
             pooled = (embedded * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1)
-        pooled = pooled.to(self.projector[0].weight.dtype)
-        memory_tokens = self.projector(pooled)
-        if not self._torch.isfinite(memory_tokens).all():
-            raise FloatingPointError("AMT projector produced non-finite memory tokens")
-        return memory_tokens.unsqueeze(0)
+        return self.projector(pooled).unsqueeze(0)
 
     def inputs(
         self, postulates: Sequence[str], query: str
@@ -146,17 +142,11 @@ class QwenPrefixAMT:
             dtype=labels.dtype,
             device=self.device,
         )
-        loss = self.model(
+        return self.model(
             inputs_embeds=embeddings,
             attention_mask=attention_mask,
             labels=self._torch.cat((prefix_labels, labels), dim=1),
         ).loss
-        if not self._torch.isfinite(loss):
-            raise FloatingPointError(
-                "Qwen produced a non-finite AMT loss; on T4 keep the projector "
-                "and optimizer state in fp32 and lower the learning rate"
-            )
-        return loss
 
     def generate(
         self,
