@@ -101,6 +101,48 @@ AMT100_CONFIG = BenchmarkConfig(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class AtomicBenchmarkConfig:
+    name: str
+    users: int
+    seed: int = 17
+
+    def __post_init__(self) -> None:
+        if not self.name or self.users < 1:
+            raise ValueError("benchmark name and user count must be positive")
+
+
+ATOMIC_SMOKE_CONFIG = AtomicBenchmarkConfig(name="amt-atomic-smoke", users=10)
+ATOMIC100_CONFIG = AtomicBenchmarkConfig(name="amt-atomic-100", users=100)
+
+_ATOMIC_TEMPLATES = {
+    "fact": (
+        ("The user knows {value}.", "What programming language does the user know?", "Which language has the user learned?"),
+        ("Python", "SQL", "Rust", "Go", "Java", "TypeScript"),
+    ),
+    "preference": (
+        ("The user prefers {value} for ML experiments.", "What does the user prefer for ML experiments?", "Which framework matches the user's stated preference?"),
+        ("Python", "PyTorch", "JAX", "TensorFlow", "Julia", "scikit-learn"),
+    ),
+    "goal": (
+        ("The user is learning {value}.", "What is the user currently learning?", "Which subject is the user studying?"),
+        ("reinforcement learning", "information retrieval", "distributed systems", "compiler design", "causal inference", "Bayesian statistics"),
+    ),
+    "constraint": (
+        ("The user needs solutions that fit on {value}.", "What hardware limit should the solution respect?", "Which resource constraint does the user have?"),
+        ("one GPU", "a laptop", "16 GB of memory", "a small CPU instance", "an offline environment", "a 30-minute runtime"),
+    ),
+    "event": (
+        ("The user attended {value}.", "What event did the user attend?", "Which event was the user present at?"),
+        ("a machine-learning workshop", "a database conference", "a Python meetup", "a systems design seminar", "an AI safety lecture", "a data engineering summit"),
+    ),
+    "relationship": (
+        ("The user's colleague is {value}.", "Who is the user's colleague?", "What is the name of the user's colleague?"),
+        ("Alex", "Morgan", "Sam", "Jordan", "Casey", "Riley"),
+    ),
+}
+
+
 def generate_benchmark(config: BenchmarkConfig) -> tuple[MemoryBenchExample, ...]:
     """Generate a deterministic benchmark with five static task families."""
     randomizer = random.Random(config.seed)
@@ -118,6 +160,37 @@ def generate_benchmark(config: BenchmarkConfig) -> tuple[MemoryBenchExample, ...
                         task_type,
                         query_number,
                         randomizer,
+                    )
+                )
+    return tuple(examples)
+
+
+def generate_atomic_benchmark(
+    config: AtomicBenchmarkConfig,
+) -> tuple[MemoryBenchExample, ...]:
+    """Generate balanced one-postulate examples with true query paraphrase pairs."""
+    randomizer = random.Random(config.seed)
+    examples: list[MemoryBenchExample] = []
+    for user_number in range(1, config.users + 1):
+        user_id = f"user_{user_number:03d}"
+        memories = _atomic_memories(user_id, randomizer)
+        for memory in memories:
+            queries = _atomic_queries(memory)
+            group_id = f"{config.name}_{user_id}_{memory.memory_id}_paraphrase"
+            for variant, query in enumerate(queries):
+                examples.append(
+                    MemoryBenchExample(
+                        example_id=(
+                            f"{config.name}_{user_id}_{memory.type}_{variant:02d}"
+                        ),
+                        user_id=user_id,
+                        memories=memories,
+                        query=query,
+                        answer=_atomic_value(memory),
+                        task_type="single_recall",
+                        relevant_memory_ids=(memory.memory_id,),
+                        required_memory_ids=(memory.memory_id,),
+                        paraphrase_group_id=group_id,
                     )
                 )
     return tuple(examples)
@@ -171,6 +244,41 @@ def _user_memories(
         )
         for index, fact in enumerate(selected)
     )
+
+
+def _atomic_memories(
+    user_id: str, randomizer: random.Random
+) -> tuple[MemoryBenchMemory, ...]:
+    memories: list[MemoryBenchMemory] = []
+    for index, (memory_type, (templates, values)) in enumerate(
+        _ATOMIC_TEMPLATES.items(), start=1
+    ):
+        value = values[randomizer.randrange(len(values))]
+        memories.append(
+            MemoryBenchMemory(
+                memory_id=f"{user_id}_atomic_{index:02d}",
+                text=templates[0].format(value=value),
+                type=memory_type,
+                scope=memory_type,
+                complexity=1,
+            )
+        )
+    return tuple(memories)
+
+
+def _atomic_queries(memory: MemoryBenchMemory) -> tuple[str, str]:
+    templates, _ = _ATOMIC_TEMPLATES[memory.type]
+    return templates[1], templates[2]
+
+
+def _atomic_value(memory: MemoryBenchMemory) -> str:
+    for templates, values in _ATOMIC_TEMPLATES.values():
+        prefix, suffix = templates[0].split("{value}")
+        if memory.text.startswith(prefix) and memory.text.endswith(suffix):
+            value = memory.text[len(prefix) : len(memory.text) - len(suffix)]
+            if value in values:
+                return value
+    raise ValueError(f"cannot determine atomic answer for {memory.memory_id}")
 
 
 def _example(

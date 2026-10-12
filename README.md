@@ -144,3 +144,14 @@ each example, select `required_memory_ids` directly, train only
 and evaluate with `amt.generate`. A successful smoke result requires both a
 falling training loss and answers that contain the gold value; cross-attention,
 retrieval, and multi-memory composition are separate later experiments.
+
+Generate the balanced atomic-memory v2 smoke set for prefix-AMT experiments:
+
+```bash
+PYTHONPATH=src python3 -m datasets.amt_memorybench atomic-smoke
+```
+
+This artifact contains one unambiguous fact, preference, goal, constraint, event,
+and relationship per user. Every postulate has two queries with the same gold
+answer and required memory ID, linked by `paraphrase_group_id` for valid
+train/paraphrase-test splits.

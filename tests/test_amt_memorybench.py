@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from datasets.amt_memorybench.generate import (
+    ATOMIC_SMOKE_CONFIG,
+        generate_atomic_benchmark,
     AMT100_CONFIG,
     SMOKE_CONFIG,
     generate_benchmark,
@@ -41,6 +43,22 @@ class AMTMemoryBenchTests(unittest.TestCase):
 
     def test_generation_is_deterministic(self) -> None:
         self.assertEqual(generate_benchmark(SMOKE_CONFIG), generate_benchmark(SMOKE_CONFIG))
+
+    def test_atomic_examples_are_balanced_true_paraphrase_pairs(self) -> None:
+        examples = generate_atomic_benchmark(ATOMIC_SMOKE_CONFIG)
+        groups: dict[str, list] = {}
+        for example in examples:
+            groups.setdefault(example.paraphrase_group_id, []).append(example)
+
+        self.assertEqual(len(examples), 10 * 6 * 2)
+        self.assertEqual({memory.type for example in examples for memory in example.memories}, {
+            "fact", "preference", "goal", "constraint", "event", "relationship"
+        })
+        for group in groups.values():
+            self.assertEqual(len(group), 2)
+            self.assertEqual(group[0].answer, group[1].answer)
+            self.assertEqual(group[0].required_memory_ids, group[1].required_memory_ids)
+            self.assertNotEqual(group[0].query, group[1].query)
 
     def test_amt100_dimensions_are_explicit(self) -> None:
         self.assertEqual(AMT100_CONFIG.users, 100)

@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Sequence
 
 from datasets.amt_memorybench.generate import (
+    ATOMIC100_CONFIG,
+    ATOMIC_SMOKE_CONFIG,
+        generate_atomic_benchmark,
     AMT100_CONFIG,
     SMOKE_CONFIG,
     generate_benchmark,
@@ -25,7 +28,9 @@ from datasets.amt_memorybench.evaluate import (
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="amt-memorybench")
-    parser.add_argument("tier", choices=("smoke", "amt-100"))
+    parser.add_argument(
+        "tier", choices=("smoke", "amt-100", "atomic-smoke", "atomic-100")
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--evaluate", action="store_true")
@@ -35,14 +40,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    base = SMOKE_CONFIG if args.tier == "smoke" else AMT100_CONFIG
-    config = base if args.seed is None else base.__class__(
-        name=base.name,
-        users=base.users,
-        memories_per_user=base.memories_per_user,
-        queries_per_task=base.queries_per_task,
-        seed=args.seed,
-    )
+    base = {
+        "smoke": SMOKE_CONFIG,
+        "amt-100": AMT100_CONFIG,
+        "atomic-smoke": ATOMIC_SMOKE_CONFIG,
+        "atomic-100": ATOMIC100_CONFIG,
+    }[args.tier]
+    if args.seed is None:
+        config = base
+    elif args.tier.startswith("atomic"):
+        config = AtomicBenchmarkConfig(name=base.name, users=base.users, seed=args.seed)
+    else:
+        config = BenchmarkConfig(
+            name=base.name,
+            users=base.users,
+            memories_per_user=base.memories_per_user,
+            queries_per_task=base.queries_per_task,
+            seed=args.seed,
+        )
     output = args.output or Path(
         f"data/processed/amt_memorybench/{config.name}.jsonl"
     )
@@ -57,8 +72,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(json.dumps(asdict(metrics), indent=2))
         return 0
-    count = write_jsonl(
-        generate_benchmark(config), output, seed=config.seed, name=config.name
+    examples = (
+        generate_atomic_benchmark(config)
+        if args.tier.startswith("atomic")
+        else generate_benchmark(config)
     )
+    count = write_jsonl(examples, output, seed=config.seed, name=config.name)
     print(json.dumps({"benchmark": config.name, "output": str(output), "examples": count}, indent=2))
     return 0

@@ -42,6 +42,7 @@ class MemoryBenchExample:
     task_type: TaskType
     relevant_memory_ids: tuple[str, ...]
     required_memory_ids: tuple[str, ...]
+    paraphrase_group_id: str | None = None
 
     def __post_init__(self) -> None:
         available = {memory.memory_id for memory in self.memories}
