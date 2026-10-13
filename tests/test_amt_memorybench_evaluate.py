@@ -10,6 +10,7 @@ from datasets.amt_memorybench.evaluate import (
     read_jsonl,
 )
 from datasets.amt_memorybench.generate import SMOKE_CONFIG, generate_benchmark, write_jsonl
+from datasets.amt_memorybench.generate import ATOMIC_SMOKE_CONFIG, generate_atomic_benchmark
 
 
 class AMTMemoryBenchEvaluationTests(unittest.TestCase):
@@ -38,6 +39,22 @@ class AMTMemoryBenchEvaluationTests(unittest.TestCase):
 
         self.assertEqual(len(examples), 100)
         self.assertEqual(examples[0].example_id, "amt-smoke_user_001_single_recall_00")
+
+    def test_read_jsonl_preserves_atomic_paraphrase_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "atomic-smoke.jsonl"
+            write_jsonl(
+                generate_atomic_benchmark(ATOMIC_SMOKE_CONFIG),
+                path,
+                seed=ATOMIC_SMOKE_CONFIG.seed,
+                name=ATOMIC_SMOKE_CONFIG.name,
+            )
+            examples = read_jsonl(path)
+
+        groups = {example.paraphrase_group_id for example in examples}
+        self.assertEqual(len(examples), 120)
+        self.assertEqual(len(groups), 60)
+        self.assertNotIn(None, groups)
 
     def test_no_memory_control_never_recovers_required_memory(self) -> None:
         examples = generate_benchmark(SMOKE_CONFIG)

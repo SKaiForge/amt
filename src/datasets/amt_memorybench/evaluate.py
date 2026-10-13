@@ -142,6 +142,11 @@ def _example_from_dict(value: dict[str, object]) -> MemoryBenchExample:
         task_type=value["task_type"],  # type: ignore[arg-type]
         relevant_memory_ids=tuple(value["relevant_memory_ids"]),  # type: ignore[arg-type]
         required_memory_ids=tuple(value["required_memory_ids"]),  # type: ignore[arg-type]
+        paraphrase_group_id=(
+            str(value["paraphrase_group_id"])
+            if value.get("paraphrase_group_id") is not None
+            else None
+        ),
     )
 
 
