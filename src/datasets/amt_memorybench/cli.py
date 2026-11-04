@@ -11,7 +11,9 @@ from typing import Sequence
 from datasets.amt_memorybench.generate import (
     ATOMIC100_CONFIG,
     ATOMIC_SMOKE_CONFIG,
-        generate_atomic_benchmark,
+    ATOMIC_SMOKE_V2_CONFIG,
+    AtomicBenchmarkConfig,
+    generate_atomic_benchmark,
     AMT100_CONFIG,
     SMOKE_CONFIG,
     generate_benchmark,
@@ -29,7 +31,14 @@ from datasets.amt_memorybench.evaluate import (
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="amt-memorybench")
     parser.add_argument(
-        "tier", choices=("smoke", "amt-100", "atomic-smoke", "atomic-100")
+        "tier",
+        choices=(
+            "smoke",
+            "amt-100",
+            "atomic-smoke",
+            "atomic-smoke-v2",
+            "atomic-100",
+        ),
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--seed", type=int)
@@ -44,6 +53,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "smoke": SMOKE_CONFIG,
         "amt-100": AMT100_CONFIG,
         "atomic-smoke": ATOMIC_SMOKE_CONFIG,
+        "atomic-smoke-v2": ATOMIC_SMOKE_V2_CONFIG,
         "atomic-100": ATOMIC100_CONFIG,
     }[args.tier]
     if args.seed is None:

@@ -54,6 +54,8 @@ def build_text_prompt(
 class AnswerMetrics:
     examples: int
     exact_accuracy: float
+    unique_postulates: int
+    postulate_accuracy: float
 
 
 def evaluate_answers(
@@ -68,6 +70,7 @@ def evaluate_answers(
         raise ValueError("k must be positive")
     count = 0
     correct = 0
+    postulate_results: dict[tuple[str, ...], list[bool]] = {}
     for example in examples:
         select_example = getattr(selector, "select_example", None)
         selected_ids = (
@@ -81,12 +84,32 @@ def evaluate_answers(
             if memory.memory_id in selected_ids
         )
         prediction = answerer.answer(example.query, selected)
-        correct += _normalize(prediction) == _normalize(example.answer)
+        is_correct = _normalize(prediction) == _normalize(example.answer)
+        correct += is_correct
+        required_texts = tuple(
+            sorted(
+                memory.text
+                for memory in example.memories
+                if memory.memory_id in example.required_memory_ids
+            )
+        )
+        postulate_results.setdefault(required_texts, []).append(is_correct)
         count += 1
     if not count:
         raise ValueError("cannot evaluate an empty benchmark")
-    return AnswerMetrics(examples=count, exact_accuracy=correct / count)
+    postulate_accuracy = sum(
+        sum(outcomes) / len(outcomes) for outcomes in postulate_results.values()
+    ) / len(postulate_results)
+    return AnswerMetrics(
+        examples=count,
+        exact_accuracy=correct / count,
+        unique_postulates=len(postulate_results),
+        postulate_accuracy=postulate_accuracy,
+    )
 
 
 def _normalize(value: str) -> str:
-    return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
+    tokens = re.findall(r"[a-z0-9]+", value.lower())
+    if tokens and tokens[0] in {"a", "an", "the"}:
+        tokens = tokens[1:]
+    return " ".join(tokens)

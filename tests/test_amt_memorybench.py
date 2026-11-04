@@ -5,7 +5,8 @@ from pathlib import Path
 
 from datasets.amt_memorybench.generate import (
     ATOMIC_SMOKE_CONFIG,
-        generate_atomic_benchmark,
+    ATOMIC_SMOKE_V2_CONFIG,
+    generate_atomic_benchmark,
     AMT100_CONFIG,
     SMOKE_CONFIG,
     generate_benchmark,
@@ -59,6 +60,15 @@ class AMTMemoryBenchTests(unittest.TestCase):
             self.assertEqual(group[0].answer, group[1].answer)
             self.assertEqual(group[0].required_memory_ids, group[1].required_memory_ids)
             self.assertNotEqual(group[0].query, group[1].query)
+
+    def test_atomic_v2_prompts_match_memory_categories(self) -> None:
+        examples = generate_atomic_benchmark(ATOMIC_SMOKE_V2_CONFIG)
+        preferences = [example for example in examples if "_preference_" in example.example_id]
+        constraints = [example for example in examples if "_constraint_" in example.example_id]
+
+        self.assertTrue(all("framework" not in example.query.lower() for example in preferences))
+        self.assertTrue(all("hardware" not in example.query.lower() for example in constraints))
+        self.assertTrue(all("ml experiments" in example.query.lower() for example in preferences))
 
     def test_amt100_dimensions_are_explicit(self) -> None:
         self.assertEqual(AMT100_CONFIG.users, 100)

@@ -113,6 +113,7 @@ class AtomicBenchmarkConfig:
 
 
 ATOMIC_SMOKE_CONFIG = AtomicBenchmarkConfig(name="amt-atomic-smoke", users=10)
+ATOMIC_SMOKE_V2_CONFIG = AtomicBenchmarkConfig(name="amt-atomic-smoke-v2", users=10)
 ATOMIC100_CONFIG = AtomicBenchmarkConfig(name="amt-atomic-100", users=100)
 
 _ATOMIC_TEMPLATES = {
@@ -121,7 +122,7 @@ _ATOMIC_TEMPLATES = {
         ("Python", "SQL", "Rust", "Go", "Java", "TypeScript"),
     ),
     "preference": (
-        ("The user prefers {value} for ML experiments.", "What does the user prefer for ML experiments?", "Which framework matches the user's stated preference?"),
+        ("The user prefers {value} for ML experiments.", "What does the user prefer for ML experiments?", "For ML experiments, which option does the user prefer?"),
         ("Python", "PyTorch", "JAX", "TensorFlow", "Julia", "scikit-learn"),
     ),
     "goal": (
@@ -129,7 +130,7 @@ _ATOMIC_TEMPLATES = {
         ("reinforcement learning", "information retrieval", "distributed systems", "compiler design", "causal inference", "Bayesian statistics"),
     ),
     "constraint": (
-        ("The user needs solutions that fit on {value}.", "What hardware limit should the solution respect?", "Which resource constraint does the user have?"),
+        ("The user needs solutions that fit on {value}.", "What constraint must a solution satisfy?", "What requirement must a solution accommodate for this user?"),
         ("one GPU", "a laptop", "16 GB of memory", "a small CPU instance", "an offline environment", "a 30-minute runtime"),
     ),
     "event": (
