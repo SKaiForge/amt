@@ -66,6 +66,55 @@ class AMTNotebookTests(unittest.TestCase):
             {"strict": False, "alias": True},
         )
 
+    def test_chat_prompt_and_answer_boundaries(self):
+        tree = ast.parse(cell_source("def score_answer"))
+        functions = {
+            node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)
+        }
+        calls = []
+
+        class TokenBatch(list):
+            def to(self, device):
+                return self
+
+        class ChatTokenizer:
+            def apply_chat_template(self, messages, **options):
+                calls.append((messages, options))
+                return "formatted assistant generation prompt"
+
+            def __call__(self, text, **options):
+                calls.append((text, options))
+                return SimpleNamespace(input_ids=TokenBatch([[1, 2]]))
+
+        namespace = {
+            "tokenizer": ChatTokenizer(), "input_device": "test-device", "ANSWER_STOP_ID": 99,
+            "torch": SimpleNamespace(
+                long="long", tensor=lambda value, **options: TokenBatch(value),
+                cat=lambda values, dim: TokenBatch([values[0][0] + values[1][0]]),
+            ),
+        }
+        exec(compile(ast.Module(body=[functions["prompt_for"], functions["build_answer_ids"]],
+                                type_ignores=[]), "chat-boundaries", "exec"), namespace)
+        namespace["prompt_for"]("Which language?", "The user knows Java.")
+        messages, options = calls[-1]
+        self.assertEqual([message["role"] for message in messages], ["system", "user"])
+        self.assertIn("The user knows Java.", messages[1]["content"])
+        self.assertEqual(options, {
+            "tokenize": False, "add_generation_prompt": True, "enable_thinking": False,
+        })
+        namespace["prompt_for"]("Which language?")
+        self.assertNotIn("Memory:", calls[-1][0][1]["content"])
+        answer_ids = namespace["build_answer_ids"]("Java")
+        self.assertEqual(calls[-1], ("Java", {"return_tensors": "pt", "add_special_tokens": False}))
+        self.assertEqual(answer_ids, [[1, 2, 99]])
+        for name in ("generate_from_prefix", "train_one_free_token"):
+            tokenizer_calls = [node for node in ast.walk(functions[name])
+                               if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                               and node.func.id == "tokenizer"]
+            self.assertEqual(len(tokenizer_calls), 1)
+            self.assertTrue(any(keyword.arg == "add_special_tokens" and keyword.value.value is False
+                                for keyword in tokenizer_calls[0].keywords))
+
     def test_sweep_resumes_completed_fits_and_evaluations(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -125,6 +174,7 @@ class AMTNotebookTests(unittest.TestCase):
                 "subprocess": SimpleNamespace(check_output=lambda args, **options: "test-commit" if args[-1] == "HEAD" and "rev-parse" in args else ""),
                 "model": SimpleNamespace(config=SimpleNamespace(_commit_hash="test-model")),
                 "model_id": "test-model", "MODEL_REVISION": "test-model",
+                "PROMPT_STYLE": "qwen3-chat-nonthinking-short-span", "ANSWER_STOP_ID": 99,
                 "quantization_config": SimpleNamespace(to_dict=lambda: {}), "dtype": "test-dtype",
                 "TOKEN_COUNTS": (1, 2, 4), "SEEDS": (17, 23, 42), "TRAIN_STEPS": 100,
                 "LEARNING_RATE": 0.01, "MAX_NEW_TOKENS": 16, "MAX_SESSION_HOURS": 6,
