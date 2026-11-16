@@ -65,6 +65,25 @@ class AMTNotebookTests(unittest.TestCase):
             score("the machine learning workshop", "a machine-learning workshop"),
             {"strict": False, "alias": True},
         )
+        self.assertEqual(
+            score("fit on 16 GB of memory", "16 GB of memory"),
+            {"strict": False, "alias": True},
+        )
+        self.assertEqual(
+            score("30-minute runtime", "a 30-minute runtime"),
+            {"strict": False, "alias": True},
+        )
+        self.assertEqual(
+            score("Python meetup", "a Python meetup"),
+            {"strict": False, "alias": True},
+        )
+        self.assertEqual(
+            score("data engineering summit", "a data engineering summit"),
+            {"strict": False, "alias": True},
+        )
+        self.assertFalse(
+            score("The answer is fit on 16 GB of memory", "16 GB of memory")["alias"]
+        )
 
     def test_chat_prompt_and_answer_boundaries(self):
         tree = ast.parse(cell_source("def score_answer"))
